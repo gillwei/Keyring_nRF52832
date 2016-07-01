@@ -29,6 +29,7 @@
 
 #include "main.h"//Tsungta
 #include "buzzer_pwm.h"//Tsungta
+#include "ble_ecys.h" // gill
 uint16_t pressing_cnt = 0;//Tsungta
 uint16_t batt_mV = 0;
 uint16_t batt_cnt_max = 3000;//Tsungta, unit 100ms
@@ -107,6 +108,7 @@ static void bsp_button_event_handler(uint8_t pin_no, uint8_t button_action);
 #endif // BSP_SIMPLE
 
 static const uint32_t m_buttons_list[BUTTONS_NUMBER] = BUTTONS_LIST;
+static uint32_t bsp_debug;
 
 #ifndef BSP_SIMPLE
 static const app_button_cfg_t app_buttons[BUTTONS_NUMBER] =

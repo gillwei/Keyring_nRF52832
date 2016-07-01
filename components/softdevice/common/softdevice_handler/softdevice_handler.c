@@ -369,7 +369,7 @@ uint32_t softdevice_enable_get_default_config(uint8_t central_links_count,
                                               ble_enable_params_t * p_ble_enable_params)
 {
     memset(p_ble_enable_params, 0, sizeof(ble_enable_params_t));
-    p_ble_enable_params->common_enable_params.vs_uuid_count   = 1;
+    p_ble_enable_params->common_enable_params.vs_uuid_count   = 2;//1;
     p_ble_enable_params->gatts_enable_params.attr_tab_size    = SOFTDEVICE_GATTS_ATTR_TAB_SIZE;
     p_ble_enable_params->gatts_enable_params.service_changed  = SOFTDEVICE_GATTS_SRV_CHANGED;
     p_ble_enable_params->gap_enable_params.periph_conn_count  = periph_links_count;

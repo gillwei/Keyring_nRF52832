@@ -20,6 +20,10 @@
 // Types of LE Bluetooth Device Address AD type
 #define AD_TYPE_BLE_DEVICE_ADDR_TYPE_PUBLIC 0UL
 #define AD_TYPE_BLE_DEVICE_ADDR_TYPE_RANDOM 1UL
+static uint16_t *pa16_watch;
+static uint8_t *pa8_watch;
+static uint32_t *pa32_watch;
+static uint32_t advdata_debug;
 
 static uint32_t tk_value_encode(ble_advdata_tk_value_t * p_tk_value,
                                 uint8_t                * p_encoded_data,
@@ -484,7 +488,6 @@ static uint32_t manuf_specific_data_encode(const ble_advdata_manuf_data_t * p_ma
     p_encoded_data[*p_offset]  = BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA;
     *p_offset                 += ADV_AD_TYPE_FIELD_SIZE;
     
-
     // Encode Company Identifier.
     *p_offset += uint16_encode(p_manuf_sp_data->company_identifier, &p_encoded_data[*p_offset]);
     
@@ -554,20 +557,7 @@ static uint32_t service_data_encode(const ble_advdata_t * p_advdata,
 
     return NRF_SUCCESS;
 }
-
-static uint32_t keyring_advdata_encode(ble_advdata_t const * const p_advdata,
-                         uint8_t             * const p_encoded_data,
-                         uint16_t            * const p_len)
-{
-	uint32_t err_code = NRF_SUCCESS;
-  uint16_t max_size = *p_len;
-  *p_len = 0;
-	p_encoded_data[*p_len] = 0x01;
-	*p_len+=1;
-	//*p_len += uint16_encode(0x2201, &p_encoded_data[*p_len]);
-	return NRF_SUCCESS;
-}
-
+static uint16_t *p_len_watch;
 uint32_t adv_data_encode(ble_advdata_t const * const p_advdata,
                          uint8_t             * const p_encoded_data,
                          uint16_t            * const p_len)
@@ -575,6 +565,7 @@ uint32_t adv_data_encode(ble_advdata_t const * const p_advdata,
     uint32_t err_code = NRF_SUCCESS;
     uint16_t max_size = *p_len;
     *p_len = 0;
+	  pa16_watch = p_len;
 
     //Encode Security Manager OOB Flags
     if (p_advdata->p_sec_mgr_oob_flags != NULL)
@@ -606,14 +597,14 @@ uint32_t adv_data_encode(ble_advdata_t const * const p_advdata,
         err_code = ble_device_addr_encode(p_encoded_data, p_len, max_size);
         VERIFY_SUCCESS(err_code);
     }
-
+   
     // Encode appearance.
     if (p_advdata->include_appearance)
     {
         err_code = appearance_encode(p_encoded_data, p_len, max_size);
         VERIFY_SUCCESS(err_code);
     }
-
+	   // *p_len -> 4
     //Encode Flags
     if(p_advdata->flags != 0 )
     {
@@ -702,7 +693,6 @@ uint32_t adv_data_encode(ble_advdata_t const * const p_advdata,
 }
 
 
-
 static uint32_t advdata_check(const ble_advdata_t * p_advdata)
 {
     // Flags must be included in advertising data, and the BLE_GAP_ADV_FLAG_BR_EDR_NOT_SUPPORTED flag must be set.
@@ -728,7 +718,30 @@ static uint32_t srdata_check(const ble_advdata_t * p_srdata)
     return NRF_SUCCESS;
 }
 
-
+static uint32_t keyring_advdata_encode(ble_advdata_t const * const p_advdata,
+                         uint8_t             * const p_encoded_data,
+                         uint16_t            *  const p_len)
+{
+	uint32_t err_code = NRF_SUCCESS;
+  uint16_t max_size = *p_len;
+  *p_len = 0;
+	pa16_watch = p_len;
+	//p_encoded_data[*p_len] = 0x01;
+//	*p_len+=1;
+	//*p_len += uint8_encode(0x01, &p_encoded_data[*p_len]);
+	pa8_watch = p_encoded_data;
+	*p_len += uint16_encode(0xFF12, &p_encoded_data[*p_len]);
+	*p_len += uint16_encode(0x5001, &p_encoded_data[*p_len]);
+	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+	return NRF_SUCCESS;
+}
 
 uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * p_srdata)
 {
@@ -736,6 +749,7 @@ uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * 
     uint16_t  len_advdata = BLE_GAP_ADV_MAX_SIZE;
     uint16_t  len_srdata  = BLE_GAP_ADV_MAX_SIZE;
     uint8_t   encoded_advdata[BLE_GAP_ADV_MAX_SIZE];
+	//uint8_t   encoded_advdata[6] = {0x01,0x02,0x03,0x04,0x05,0x06};
     uint8_t   encoded_srdata[BLE_GAP_ADV_MAX_SIZE];
     uint8_t * p_encoded_advdata;
     uint8_t * p_encoded_srdata;
@@ -743,13 +757,12 @@ uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * 
     // Encode advertising data (if supplied).
     if (p_advdata != NULL)
     {
-			// gill modify 20160621
-//        err_code = advdata_check(p_advdata);
-//        VERIFY_SUCCESS(err_code);
-				
-        err_code = adv_data_encode(p_advdata, encoded_advdata, &len_advdata);
-      //err_code = keyring_advdata_encode(p_advdata, encoded_advdata, &len_advdata);
-			VERIFY_SUCCESS(err_code);
+        //err_code = advdata_check(p_advdata);
+        //VERIFY_SUCCESS(err_code);
+				err_code = keyring_advdata_encode(p_advdata, encoded_advdata, &len_advdata);
+        //err_code = adv_data_encode(p_advdata, encoded_advdata, &len_advdata);
+        VERIFY_SUCCESS(err_code);	
+			
         p_encoded_advdata = encoded_advdata;
     }
     else
@@ -759,21 +772,25 @@ uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * 
     }
 
     // Encode scan response data (if supplied).
-    if (p_srdata != NULL)
-    {
-        err_code = srdata_check(p_srdata);
-        VERIFY_SUCCESS(err_code);
+//    if (p_srdata != NULL)
+//    {
+        //err_code = srdata_check(p_srdata);
+        //VERIFY_SUCCESS(err_code);
 
-        err_code = adv_data_encode(p_srdata, encoded_srdata, &len_srdata);
-        VERIFY_SUCCESS(err_code);
-        p_encoded_srdata = encoded_srdata;
-    }
-    else
-    {
+				//err_code = keyring_advdata_encode(p_srdata, encoded_srdata, &len_srdata);
+//        err_code = adv_data_encode(p_srdata, encoded_srdata, &len_srdata);
+//        VERIFY_SUCCESS(err_code);
+//        p_encoded_srdata = encoded_srdata;
+//    }
+//    else
+//    {
         p_encoded_srdata = NULL;
         len_srdata = 0;
-    }
+//    }
 
+		//len_advdata = 6;
     // Pass encoded advertising data and/or scan response data to the stack.
-    return sd_ble_gap_adv_data_set(p_encoded_advdata, len_advdata, p_encoded_srdata, len_srdata);
+    *pa32_watch  = sd_ble_gap_adv_data_set(p_encoded_advdata, len_advdata, p_encoded_srdata, len_srdata);
+		return NRF_SUCCESS;
+		//return sd_ble_gap_adv_data_set(p_encoded_advdata, len_advdata, p_encoded_srdata, len_srdata);
 }

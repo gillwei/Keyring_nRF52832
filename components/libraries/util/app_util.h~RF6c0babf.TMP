@@ -241,13 +241,6 @@ static __INLINE uint64_t value_rescale(uint32_t value, uint32_t old_unit_reversa
     return (uint64_t)ROUNDED_DIV((uint64_t)value * new_unit_reversal, old_unit_reversal);
 }
 
-// gill
-static __INLINE uint8_t uint8_encode(uint8_t value, uint8_t * p_encoded_data)
-{
-    p_encoded_data[0] = value;
-    return sizeof(uint8_t);
-}
-
 /**@brief Function for encoding a uint16 value.
  *
  * @param[in]   value            Value to be encoded.

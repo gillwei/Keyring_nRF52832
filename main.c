@@ -41,6 +41,7 @@
 #include "ble_ias.h"
 #include "ble_lls.h"
 #include "ble_bas.h"
+#include "ble_ecys.h"
 #include "ble_conn_params.h"
 #include "sensorsim.h"
 #include "softdevice_handler.h"
@@ -78,7 +79,7 @@ uint16_t key0_cnt_trigger = 3;
 #define SIGNAL_ALERT_BUTTON_ID              0                                            /**< Button used for send or cancel High Alert to the peer. */
 #define STOP_ALERTING_BUTTON_ID             1                                            /**< Button used for clearing the Alert LED that may be blinking or turned ON because of alerts from the central. */
 
-#define DEVICE_NAME                         "Nordic_Prox_B"                                /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                         "Keyring_v01"                                /**< Name of device. Will be included in the advertising data. */
 
 //Atlas
 //#define APP_ADV_INTERVAL_FAST               0x0028                                       /**< Fast advertising interval (in units of 0.625 ms. This value corresponds to 25 ms.). */
@@ -151,10 +152,10 @@ static ble_db_discovery_t               m_ble_db_discovery;                     
 static ble_tps_t                        m_tps;                                   /**< Structure used to identify the TX Power service. */
 static ble_ias_t                        m_ias;                                   /**< Structure used to identify the Immediate Alert service. */
 static ble_lls_t                        m_lls;                                   /**< Structure used to identify the Link Loss service. */
-
 static ble_bas_t                        m_bas;                                   /**< Structure used to identify the battery service. */
 static ble_ias_c_t                      m_ias_c;                                 /**< Structure used to identify the client to the Immediate Alert Service at peer. */
 
+static ble_ecys_t                      	m_ecys; 
 
 static volatile bool                    m_is_high_alert_signalled;               /**< Variable to indicate whether a high alert has been signalled to the peer. */
 static volatile bool                    m_is_ias_present = false;                /**< Variable to indicate whether the immediate alert service has been discovered at the connected peer. */
@@ -176,6 +177,7 @@ static void on_ias_c_evt(ble_ias_c_t * p_lls, ble_ias_c_evt_t * p_evt);
 static void on_bas_evt(ble_bas_t * p_bas, ble_bas_evt_t * p_evt);
 static void advertising_init(void);
 static void advertising_start(void);
+static uint32_t main_debug;
 
 #ifdef NRF51
 static nrf_adc_value_t adc_buf[1];
@@ -350,39 +352,39 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
  * @details  This function will fetch the conversion result from the ADC, convert the value into
  *           percentage and send it to peer.
  */
-void adc_event_handler(nrf_drv_adc_evt_t const * p_event)
-{
-    if (p_event->type == NRF_DRV_ADC_EVT_DONE)
-    {
-        nrf_adc_value_t adc_result;
-        uint16_t        batt_lvl_in_milli_volts;
-        uint8_t         percentage_batt_lvl;
-        uint32_t        err_code;
+//void adc_event_handler(nrf_drv_adc_evt_t const * p_event)
+//{
+//    if (p_event->type == NRF_DRV_ADC_EVT_DONE)
+//    {
+//        nrf_adc_value_t adc_result;
+//        uint16_t        batt_lvl_in_milli_volts;
+//        uint8_t         percentage_batt_lvl;
+//        uint32_t        err_code;
 
-        adc_result = p_event->data.done.p_buffer[0];
+//        adc_result = p_event->data.done.p_buffer[0];
 
-        err_code = nrf_drv_adc_buffer_convert(p_event->data.done.p_buffer, 1);
-        APP_ERROR_CHECK(err_code);
+//        err_code = nrf_drv_adc_buffer_convert(p_event->data.done.p_buffer, 1);
+//        APP_ERROR_CHECK(err_code);
 
-        batt_lvl_in_milli_volts = ADC_RESULT_IN_MILLI_VOLTS(adc_result) +
-                                  DIODE_FWD_VOLT_DROP_MILLIVOLTS;
-        percentage_batt_lvl = battery_level_in_percent(batt_lvl_in_milli_volts);
+//        batt_lvl_in_milli_volts = ADC_RESULT_IN_MILLI_VOLTS(adc_result) +
+//                                  DIODE_FWD_VOLT_DROP_MILLIVOLTS;
+//        percentage_batt_lvl = battery_level_in_percent(batt_lvl_in_milli_volts);
 
-        err_code = ble_bas_battery_level_update(&m_bas, percentage_batt_lvl);
-        if (
-            (err_code != NRF_SUCCESS)
-            &&
-            (err_code != NRF_ERROR_INVALID_STATE)
-            &&
-            (err_code != BLE_ERROR_NO_TX_PACKETS)
-            &&
-            (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
-           )
-        {
-            APP_ERROR_HANDLER(err_code);
-        }
-    }
-}
+//        err_code = ble_bas_battery_level_update(&m_bas, percentage_batt_lvl);
+//        if (
+//            (err_code != NRF_SUCCESS)
+//            &&
+//            (err_code != NRF_ERROR_INVALID_STATE)
+//            &&
+//            (err_code != BLE_ERROR_NO_TX_PACKETS)
+//            &&
+//            (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+//           )
+//        {
+//            APP_ERROR_HANDLER(err_code);
+//        }
+//    }
+//}
 
 
 #else // NRF52
@@ -425,6 +427,7 @@ void saadc_event_handler(nrf_drv_saadc_evt_t const * p_event)
 //        {
 //            APP_ERROR_HANDLER(err_code);
 //        }
+		
 		app_timer_stop(m_battery_timer_id);		
 		measure_VDD_stop();
     }
@@ -736,6 +739,43 @@ static void ias_client_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+// gill 20160701
+// gill 20160701
+/**@brief Function for handling Immediate Alert events.
+ *
+ * @details This function will be called for all Immediate Alert events which are passed to the
+ *          application.
+ *
+ * @param[in] p_ias  Immediate Alert structure.
+ * @param[in] p_evt  Event received from the Immediate Alert service.
+ */
+static void on_ecys_evt(ble_ecys_t * p_ecys, ble_ecys_evt_t * p_evt)
+{
+    switch (p_evt->evt_type)
+    {
+        case BLE_ECYS_EVT_RANDOM_NUMBER_UPDATED:
+            //alert_signal(p_evt->params.random_number);
+            break;//BLE_IAS_EVT_ALERT_LEVEL_UPDATED
+
+        default:
+            // No implementation needed.
+            break;
+    }
+}
+
+/**@brief Function for initializing the Encryption Service
+ */
+static void ecys_init(void)
+{
+    uint32_t       err_code;
+    ble_ecys_init_t ecys_init_obj;
+
+    memset(&ecys_init_obj, 0, sizeof(ecys_init_obj));
+    ecys_init_obj.evt_handler = on_ecys_evt;
+
+    err_code = ble_ecys_init(&m_ecys, &ecys_init_obj);
+    APP_ERROR_CHECK(err_code);
+}
 
 /**@brief Function for initializing the services that will be used by the application.
  */
@@ -745,6 +785,7 @@ static void services_init(void)
     ias_init();
     lls_init();
     bas_init();
+		ecys_init();
     ias_client_init();
 }
 
@@ -941,6 +982,8 @@ static void on_bas_evt(ble_bas_t * p_bas, ble_bas_evt_t * p_evt)
 }
 
 
+
+
 /**@brief Function for handling the Application's BLE Stack events.
  *
  * @param[in] p_ble_evt  Bluetooth stack event.
@@ -1040,6 +1083,7 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
     ble_ias_c_on_ble_evt(&m_ias_c, p_ble_evt);
     ble_tps_on_ble_evt(&m_tps, p_ble_evt);
     bsp_btn_ble_on_ble_evt(p_ble_evt);
+		ble_ecys_on_ble_evt(&m_ecys, p_ble_evt);
     on_ble_evt(p_ble_evt);
     ble_advertising_on_ble_evt(p_ble_evt);
 }
@@ -1270,6 +1314,10 @@ void measure_VDD_start(void)
 {
 		adc_configure();//Tsungta
     app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
+	// gill test
+//	uint8_t randnum[4]; 
+//	main_debug = ble_ecys_random_number_get(&m_ecys,randnum);
+//	main_debug += 0;
 }	
 
 void measure_VDD_stop(void)
