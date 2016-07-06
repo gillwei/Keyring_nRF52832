@@ -27,7 +27,7 @@
 #define RANDNUM_CHAR_SHORT_UUID 					 0xDF90
 #define RANDOM_NUMBER_LENGTH							 4
 
-static const uint8_t p_initial_randomnum[4] = {0xFF,0xFF,0xFF,0xFF};
+static const uint8_t p_initial_randomnum[4] = {0x5C,0x21,0x34,0xC1};
 static uint32_t ecys_debug;
 
 //static uint32_t RN_uint32_big_decode(const ble_gatts_evt_write_t * p_evt)

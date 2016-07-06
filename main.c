@@ -155,7 +155,7 @@ static ble_lls_t                        m_lls;                                  
 static ble_bas_t                        m_bas;                                   /**< Structure used to identify the battery service. */
 static ble_ias_c_t                      m_ias_c;                                 /**< Structure used to identify the client to the Immediate Alert Service at peer. */
 
-static ble_ecys_t                      	m_ecys; 
+ble_ecys_t                      	m_ecys; 
 
 static volatile bool                    m_is_high_alert_signalled;               /**< Variable to indicate whether a high alert has been signalled to the peer. */
 static volatile bool                    m_is_ias_present = false;                /**< Variable to indicate whether the immediate alert service has been discovered at the connected peer. */
@@ -178,6 +178,10 @@ static void on_bas_evt(ble_bas_t * p_bas, ble_bas_evt_t * p_evt);
 static void advertising_init(void);
 static void advertising_start(void);
 static uint32_t main_debug;
+static uint16_t main_debug_16; 
+static uint8_t  main_debug_8;		
+static const uint16_t Keyring_randnum_1 = 0x1234;
+static const uint16_t Keyring_randnum_2 = 0x9876;																	 
 
 #ifdef NRF51
 static nrf_adc_value_t adc_buf[1];
@@ -317,6 +321,7 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
             break;//PM_EVT_PEER_DELETE_FAILED
 
         case PM_EVT_PEERS_DELETE_SUCCEEDED:
+						advertising_init();
             advertising_start();
             break;//PM_EVT_PEERS_DELETE_SUCCEEDED
 
@@ -608,6 +613,150 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     }
 }
 
+static uint8_t encrypted_address_byte(uint8_t address_byte, uint8_t randnum_4bit)
+{
+	main_debug_8 = randnum_4bit;
+	uint8_t bit_AA = randnum_4bit & 0x0C;
+	uint8_t bit_BB = randnum_4bit & 0x03;
+	main_debug_8 = bit_BB;
+	uint8_t encry_result;
+	uint8_t rotate_scale = bit_BB*2; // Maximum rotate_scale is 6
+	uint8_t encrybit_7 = (address_byte & 0x80)>> 7;
+	uint8_t encrybit_6 = (address_byte & 0x40)>> 5;
+	uint8_t encrybit_5 = (address_byte & 0x20)>> 3;
+	uint8_t encrybit_4 = (address_byte & 0x10)>> 1;
+	uint8_t encrybit_3 = (address_byte & 0x08)<< 1;
+	uint8_t encrybit_2 = (address_byte & 0x04)<< 3;
+	uint8_t encrybit_1 = (address_byte & 0x02)<< 5;
+	uint8_t encrybit_0 = (address_byte & 0x01)<< 7;
+
+	switch(bit_AA)
+	{
+		case 0x00:  // Right shift
+			if (rotate_scale == 0)
+				return address_byte;
+			else
+			{
+				//  >> shift operation add 0, so we need to use OR operation 
+				encry_result = (address_byte >> rotate_scale)|(address_byte << (8-rotate_scale));
+				main_debug_8 = encry_result;
+			}
+			break;
+		case 0x04:  // Bit Sort
+			encry_result = encrybit_7 | encrybit_6| encrybit_5| encrybit_4| encrybit_3| encrybit_2| encrybit_1| encrybit_0;
+			main_debug_8 = encry_result;
+			break;
+		case 0x08:  // Bit Inverse
+			encry_result = ~address_byte;
+			main_debug_8 = encry_result;
+			break;
+		case 0x0C:  // Left Shift
+			if (rotate_scale == 0)
+				return address_byte;
+			else
+			{
+				encry_result = (address_byte << rotate_scale)|(address_byte >> (8-rotate_scale));
+				main_debug_8 = encry_result;
+			}
+			break;
+		default:
+			break;
+	}
+	return encry_result;
+}
+
+union ENCRYPT_DATA_BITS {
+		uint16_t u16_bytes[5];
+    uint8_t u8_bytes[10]; 
+} en_data_bits;
+
+union ORG_DATA_BITS {
+		uint16_t u16_bytes[3];
+    uint8_t u8_bytes[6];
+} org_data_bits;
+
+//static void insert_en_data(uint8_t current_loc,uint8_t insert_size,uint8_t *p_data,uint8_t bit_loc)
+//{
+//	uint64_t i;
+//}
+
+uint32_t keyring_advdata_encode(ble_advdata_t const * const p_advdata,
+                         uint8_t             * const p_encoded_data,
+                         uint16_t            *  const p_len)
+{
+	uint32_t err_code = NRF_SUCCESS;
+  uint16_t max_size = *p_len;
+  *p_len = 0;
+  uint16_t length = 0;
+	//*p_len += uint8_encode(0x01, &p_encoded_data[*p_len]); // fail, don't know why
+	uint8_t randnum[4]; 
+	main_debug = ble_ecys_random_number_get(&m_ecys,randnum);
+	uint8_t encry_size_1 = (uint8_t) ((randnum[3] & 0xF0) >> 4);  // One time password ****
+	uint8_t encry_size_2 = (uint8_t) ((randnum[3] & 0x0F) >> 0);  // One time password ####
+	main_debug_8 = encry_size_2;
+	uint16_t randnum_value = uint16_big_decode(randnum);
+	uint16_t randnum_value_2 = uint16_big_decode(randnum+2);
+	ble_gap_addr_t ble_address;
+	err_code = sd_ble_gap_address_get(&ble_address);
+	//main_debug = err_code;
+	memset(p_encoded_data,0,18);
+	*p_len += uint16_inverse_encode(0x12FF, &p_encoded_data[*p_len]);     // Packet Length & AD type
+	*p_len += uint16_inverse_encode(0x0150, &p_encoded_data[*p_len]);    // Company Identify Name
+	*p_len += uint8_encode(0x00, &p_encoded_data[*p_len]);  // FSENS Trigger
+	*p_len += uint16_inverse_encode(randnum_value, &p_encoded_data[*p_len]); // One Time Password
+	*p_len += uint16_inverse_encode(randnum_value_2, &p_encoded_data[*p_len]);
+	// BD_address_encrypt
+	uint8_t randnum_4bit[6] = {0}; // Random number 4 bits  
+	randnum_4bit[0] = ((randnum[0] & 0xF0) >> 4 );
+	randnum_4bit[1] = ((randnum[0] & 0x0F) >> 0 );
+	randnum_4bit[2] = ((randnum[1] & 0xF0) >> 4 );
+	randnum_4bit[3] = ((randnum[1] & 0x0F) >> 0 );
+	randnum_4bit[4] = ((randnum[2] & 0xF0) >> 4 );
+	randnum_4bit[5] = ((randnum[2] & 0x0F) >> 0 );
+
+	//1 byte encryption test
+//	uint8_t byte_1 = encrypted_address_byte(ble_address.addr[3],randnum_4bit[0]);
+//	main_debug_8 = byte_1;
+	
+	//uint8_t encrypted_addr[6] = {0};
+//	for (uint8_t i = 0;i<6;i++)
+//	{
+//		org_data_bits.u8_bytes[i] = encrypted_address_byte(ble_address.addr[5-i],randnum_4bit[i]);		
+//	}
+	
+	org_data_bits.u8_bytes[1] = encrypted_address_byte(ble_address.addr[5],randnum_4bit[0]);
+	org_data_bits.u8_bytes[0] = encrypted_address_byte(ble_address.addr[4],randnum_4bit[1]);
+	org_data_bits.u8_bytes[3] = encrypted_address_byte(ble_address.addr[3],randnum_4bit[2]);
+	org_data_bits.u8_bytes[2] = encrypted_address_byte(ble_address.addr[2],randnum_4bit[3]);
+	org_data_bits.u8_bytes[5] = encrypted_address_byte(ble_address.addr[1],randnum_4bit[4]);
+	org_data_bits.u8_bytes[4] = encrypted_address_byte(ble_address.addr[0],randnum_4bit[5]);
+	
+	
+	// Start Encryption uint16_t : 1
+	uint16_t temp_16 = org_data_bits.u16_bytes[0] >>(16-encry_size_1);
+	en_data_bits.u16_bytes[0] = (temp_16 << (16-encry_size_1)) | (Keyring_randnum_1 >> encry_size_1);
+	// uint16_t:2
+	temp_16 = org_data_bits.u16_bytes[0]  << encry_size_1;
+	en_data_bits.u16_bytes[1] = (Keyring_randnum_1 << (16-encry_size_1)) | (temp_16 >> encry_size_1);
+	// uint16_t:3 
+	en_data_bits.u16_bytes[2] = org_data_bits.u16_bytes[1];
+	// uint16_t:4
+	temp_16 = org_data_bits.u16_bytes[2]  >> encry_size_2;
+	en_data_bits.u16_bytes[3] = (temp_16 << encry_size_2) | (Keyring_randnum_2 >> (16-encry_size_2));
+	// uint16_t:5
+	temp_16 = org_data_bits.u16_bytes[2] << (16-encry_size_2);
+	en_data_bits.u16_bytes[4] = (Keyring_randnum_2 << encry_size_2) | (temp_16 >> (16-encry_size_2));
+	
+	*p_len += uint16_inverse_encode(en_data_bits.u16_bytes[0], &p_encoded_data[*p_len]);
+	*p_len += uint16_inverse_encode(en_data_bits.u16_bytes[1], &p_encoded_data[*p_len]);
+	*p_len += uint16_inverse_encode(en_data_bits.u16_bytes[2], &p_encoded_data[*p_len]);
+	*p_len += uint16_inverse_encode(en_data_bits.u16_bytes[3], &p_encoded_data[*p_len]);
+	*p_len += uint16_inverse_encode(en_data_bits.u16_bytes[4], &p_encoded_data[*p_len]);
+
+//*p_len += uint8_encode(0x01, &p_encoded_data[*p_len]); 
+//*p_len += uint8_encode(0xFF, &p_encoded_data[*p_len]); 
+	return NRF_SUCCESS;
+}
 
 /**@brief Function for initializing the Advertising functionality.
  *
@@ -1350,11 +1499,11 @@ int main(void)
     }
 //		NRF_LOG_PRINTF("!START!\r\n");//Tsungta
     gap_params_init();
-    advertising_init();
+    //advertising_init();
     db_discovery_init();
     services_init();
     conn_params_init();
-
+		advertising_init(); // change after services_init for random number get
     advertising_start();
 
     for (;;)

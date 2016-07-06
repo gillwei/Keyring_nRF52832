@@ -14,6 +14,8 @@
 #include "ble_gap.h"
 #include "ble_srv_common.h"
 #include "sdk_common.h"
+#include "ble_ecys.h"
+#include "main.h"
 
 // NOTE: For now, Security Manager Out of Band Flags (OOB) are omitted from the advertising data.
 
@@ -23,6 +25,7 @@
 static uint16_t *pa16_watch;
 static uint8_t *pa8_watch;
 static uint32_t *pa32_watch;
+extern ble_ecys_t m_ecys;
 static uint32_t advdata_debug;
 
 static uint32_t tk_value_encode(ble_advdata_tk_value_t * p_tk_value,
@@ -718,30 +721,31 @@ static uint32_t srdata_check(const ble_advdata_t * p_srdata)
     return NRF_SUCCESS;
 }
 
-static uint32_t keyring_advdata_encode(ble_advdata_t const * const p_advdata,
-                         uint8_t             * const p_encoded_data,
-                         uint16_t            *  const p_len)
-{
-	uint32_t err_code = NRF_SUCCESS;
-  uint16_t max_size = *p_len;
-  *p_len = 0;
-	pa16_watch = p_len;
-	//p_encoded_data[*p_len] = 0x01;
-//	*p_len+=1;
-	//*p_len += uint8_encode(0x01, &p_encoded_data[*p_len]);
-	pa8_watch = p_encoded_data;
-	*p_len += uint16_encode(0xFF12, &p_encoded_data[*p_len]);
-	*p_len += uint16_encode(0x5001, &p_encoded_data[*p_len]);
-	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
-	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
-	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
-	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
-	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
-	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
-	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
-	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
-	return NRF_SUCCESS;
-}
+//static uint32_t keyring_advdata_encode(ble_advdata_t const * const p_advdata,
+//                         uint8_t             * const p_encoded_data,
+//                         uint16_t            *  const p_len)
+//{
+//	uint32_t err_code = NRF_SUCCESS;
+//  uint16_t max_size = *p_len;
+//  *p_len = 0;
+//	pa16_watch = p_len;
+
+//	//*p_len += uint8_encode(0x01, &p_encoded_data[*p_len]); // fail, don't know why
+//	uint8_t randnum[4]; 
+//	advdata_debug = ble_ecys_random_number_get(&m_ecys,randnum);
+
+//	*p_len += uint16_encode(0xFF12, &p_encoded_data[*p_len]);
+//	*p_len += uint16_encode(0x5001, &p_encoded_data[*p_len]);
+//	//*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+//	//*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+//	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+//	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+//	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+//	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+//	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+//	*p_len += uint16_encode(0x0000, &p_encoded_data[*p_len]);
+//	return NRF_SUCCESS;
+//}
 
 uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * p_srdata)
 {
@@ -788,9 +792,9 @@ uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * 
         len_srdata = 0;
 //    }
 
-		//len_advdata = 6;
+		//len_advdata = 12;
     // Pass encoded advertising data and/or scan response data to the stack.
-    *pa32_watch  = sd_ble_gap_adv_data_set(p_encoded_advdata, len_advdata, p_encoded_srdata, len_srdata);
+    *pa32_watch  = sd_ble_gap_adv_data_set(encoded_advdata, len_advdata, p_encoded_srdata, len_srdata);
 		return NRF_SUCCESS;
 		//return sd_ble_gap_adv_data_set(p_encoded_advdata, len_advdata, p_encoded_srdata, len_srdata);
 }
