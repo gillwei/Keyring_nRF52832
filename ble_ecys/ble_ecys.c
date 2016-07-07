@@ -19,15 +19,14 @@
 #include <string.h>
 #include "ble_srv_common.h"
 
-
-//#define INITIAL_RANDOM_NUMBER              0x1199
 #define ENCRY_UUID_BASE									 {0x2B,0xF0,0xEC,0xBE,0xC6,0x3B,0xE4,0xBB,0x55,0x40,0xEA,0x92,0x00,0x00,0xA1,0xD6}
 #define RANDNUM_UUID_BASE								 {0x44,0x85,0x6F,0x19,0x9D,0x82,0xD2,0xAE,0x4A,0x4B,0x3E,0x65,0x00,0x00,0x6E,0x7D}
 #define ECYS_SERVICE_SHORT_UUID 					 0xD79C
 #define RANDNUM_CHAR_SHORT_UUID 					 0xDF90
 #define RANDOM_NUMBER_LENGTH							 4
 
-static const uint8_t p_initial_randomnum[4] = {0x5C,0x21,0x34,0xC1};
+// Initial Random Number 
+static const uint8_t p_initial_randomnum[4] = {0xFF,0xFF,0xFF,0xFF};
 static uint32_t ecys_debug;
 
 //static uint32_t RN_uint32_big_decode(const ble_gatts_evt_write_t * p_evt)
@@ -108,7 +107,7 @@ static uint32_t alert_level_char_add(ble_ecys_t * p_ecys,ble_uuid_t input_char_u
 
     //char_md.char_props.write_wo_resp = 1;
 		char_md.char_props.write         = 1;
-		char_md.char_props.read          = 1;
+		//char_md.char_props.read          = 1;
     char_md.p_char_user_desc         = NULL;
     char_md.p_char_pf                = NULL;
     char_md.p_user_desc_md           = NULL;
@@ -120,8 +119,8 @@ static uint32_t alert_level_char_add(ble_ecys_t * p_ecys,ble_uuid_t input_char_u
     memset(&attr_md, 0, sizeof(attr_md));
 
     // read_perm just for test
-		//BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&attr_md.read_perm);
-		BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
+		BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&attr_md.read_perm);
+		//BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_ENC_NO_MITM(&attr_md.write_perm);
 
 

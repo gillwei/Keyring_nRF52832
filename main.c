@@ -155,7 +155,7 @@ static ble_lls_t                        m_lls;                                  
 static ble_bas_t                        m_bas;                                   /**< Structure used to identify the battery service. */
 static ble_ias_c_t                      m_ias_c;                                 /**< Structure used to identify the client to the Immediate Alert Service at peer. */
 
-ble_ecys_t                      	m_ecys; 
+ble_ecys_t                      				m_ecys;                                  /**< Structure used to identify the encryption service. */
 
 static volatile bool                    m_is_high_alert_signalled;               /**< Variable to indicate whether a high alert has been signalled to the peer. */
 static volatile bool                    m_is_ias_present = false;                /**< Variable to indicate whether the immediate alert service has been discovered at the connected peer. */
@@ -163,7 +163,7 @@ static volatile bool                    m_is_ias_present = false;               
 APP_TIMER_DEF(m_battery_timer_id);                                               /**< Battery measurement timer. */
 
 
-#define APP_ADV_INTERVAL               560                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 25 ms). */
+#define APP_ADV_INTERVAL               608//560                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 25 ms). */
 #define APP_ADV_TIMEOUT_IN_SECONDS     18000                                         /**< The advertising timeout in units of seconds. */
 
 static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_IMMEDIATE_ALERT_SERVICE, BLE_UUID_TYPE_BLE},
@@ -177,11 +177,25 @@ static void on_ias_c_evt(ble_ias_c_t * p_lls, ble_ias_c_evt_t * p_evt);
 static void on_bas_evt(ble_bas_t * p_bas, ble_bas_evt_t * p_evt);
 static void advertising_init(void);
 static void advertising_start(void);
+
+// gill 																	 
 static uint32_t main_debug;
 static uint16_t main_debug_16; 
 static uint8_t  main_debug_8;		
-static const uint16_t Keyring_randnum_1 = 0x1234;
-static const uint16_t Keyring_randnum_2 = 0x9876;																	 
+static const uint16_t Keyring_gen_randnum_1 = 0x1988; // keyring generated randnum upper bits
+static const uint16_t Keyring_gen_randnum_2 = 0x0519; // keyring generated randnum lower bits
+// After BD address encrypted, generate 48 bits data
+static union ORG_DATA_BITS {
+		uint16_t u16_bytes[3];
+    uint8_t u8_bytes[6];
+} org_data_bits;
+// After insert encrypted	BD address and keyring generated randnum, 80 bits data
+static union ENCRYPT_DATA_BITS {
+		uint16_t u16_bytes[5];
+    uint8_t u8_bytes[10]; 
+} en_data_bits;
+
+																	 
 
 #ifdef NRF51
 static nrf_adc_value_t adc_buf[1];
@@ -621,6 +635,7 @@ static uint8_t encrypted_address_byte(uint8_t address_byte, uint8_t randnum_4bit
 	main_debug_8 = bit_BB;
 	uint8_t encry_result;
 	uint8_t rotate_scale = bit_BB*2; // Maximum rotate_scale is 6
+	// encrybit set for bit sort
 	uint8_t encrybit_7 = (address_byte & 0x80)>> 7;
 	uint8_t encrybit_6 = (address_byte & 0x40)>> 5;
 	uint8_t encrybit_5 = (address_byte & 0x20)>> 3;
@@ -665,21 +680,26 @@ static uint8_t encrypted_address_byte(uint8_t address_byte, uint8_t randnum_4bit
 	return encry_result;
 }
 
-union ENCRYPT_DATA_BITS {
-		uint16_t u16_bytes[5];
-    uint8_t u8_bytes[10]; 
-} en_data_bits;
+uint32_t keyring_scrdata_encode(ble_advdata_t const * const p_advdata,
+                         uint8_t             * const p_encoded_data,
+                         uint16_t            *  const p_len)
+{
+	uint32_t err_code = NRF_SUCCESS;
+  uint16_t max_size = *p_len;
+  *p_len = 0;
+  uint16_t length = 0;
+	// CD-SK1
+	//0x43 0x44 0x2d 0x53 0x4b 0x31
+	*p_len += uint16_inverse_encode(0x4344, &p_encoded_data[*p_len]);     
+	*p_len += uint16_inverse_encode(0x2D53, &p_encoded_data[*p_len]);
+	*p_len += uint16_inverse_encode(0x4B31, &p_encoded_data[*p_len]);  	
+	// tx power
+	uint8_t tx_power_level = TX_POWER_LEVEL;
+	*p_len += uint8_encode(tx_power_level, &p_encoded_data[*p_len]);  
+	
+}
 
-union ORG_DATA_BITS {
-		uint16_t u16_bytes[3];
-    uint8_t u8_bytes[6];
-} org_data_bits;
-
-//static void insert_en_data(uint8_t current_loc,uint8_t insert_size,uint8_t *p_data,uint8_t bit_loc)
-//{
-//	uint64_t i;
-//}
-
+// Called from ble_advdata_set() in ble_advdata.c, replace adv_data_encode()
 uint32_t keyring_advdata_encode(ble_advdata_t const * const p_advdata,
                          uint8_t             * const p_encoded_data,
                          uint16_t            *  const p_len)
@@ -688,31 +708,35 @@ uint32_t keyring_advdata_encode(ble_advdata_t const * const p_advdata,
   uint16_t max_size = *p_len;
   *p_len = 0;
   uint16_t length = 0;
-	//*p_len += uint8_encode(0x01, &p_encoded_data[*p_len]); // fail, don't know why
-	uint8_t randnum[4]; 
-	main_debug = ble_ecys_random_number_get(&m_ecys,randnum);
-	uint8_t encry_size_1 = (uint8_t) ((randnum[3] & 0xF0) >> 4);  // One time password ****
-	uint8_t encry_size_2 = (uint8_t) ((randnum[3] & 0x0F) >> 0);  // One time password ####
-	main_debug_8 = encry_size_2;
-	uint16_t randnum_value = uint16_big_decode(randnum);
-	uint16_t randnum_value_2 = uint16_big_decode(randnum+2);
+	// If only encode few packets will advertise empty packet, don't know why
+	//*p_len += uint8_encode(0x01, &p_encoded_data[*p_len]); 
+	
+	uint8_t oneTimePass[4];  // One time password generated from Car device
+	main_debug = ble_ecys_random_number_get(&m_ecys,oneTimePass);
+	uint8_t encry_size_1 = (uint8_t) ((oneTimePass[3] & 0xF0) >> 4);  // One time password ****
+	uint8_t encry_size_2 = (uint8_t) ((oneTimePass[3] & 0x0F) >> 0);  // One time password ####
+	//main_debug_8 = encry_size_2;
+	uint16_t oneTimePass_u16_1 = uint16_big_decode(oneTimePass);
+	uint16_t oneTimePass_u16_2 = uint16_big_decode(oneTimePass+2);
 	ble_gap_addr_t ble_address;
 	err_code = sd_ble_gap_address_get(&ble_address);
 	//main_debug = err_code;
-	memset(p_encoded_data,0,18);
+	memset(p_encoded_data,0,19);
+	
+	// Start encode advertising packet
 	*p_len += uint16_inverse_encode(0x12FF, &p_encoded_data[*p_len]);     // Packet Length & AD type
 	*p_len += uint16_inverse_encode(0x0150, &p_encoded_data[*p_len]);    // Company Identify Name
-	*p_len += uint8_encode(0x00, &p_encoded_data[*p_len]);  // FSENS Trigger
-	*p_len += uint16_inverse_encode(randnum_value, &p_encoded_data[*p_len]); // One Time Password
-	*p_len += uint16_inverse_encode(randnum_value_2, &p_encoded_data[*p_len]);
+	*p_len += uint8_encode(0x00, &p_encoded_data[*p_len]);  // FSENS Trigger, not used
+	*p_len += uint16_inverse_encode(oneTimePass_u16_1, &p_encoded_data[*p_len]); // One Time Password 1
+	*p_len += uint16_inverse_encode(oneTimePass_u16_2, &p_encoded_data[*p_len]);
 	// BD_address_encrypt
-	uint8_t randnum_4bit[6] = {0}; // Random number 4 bits  
-	randnum_4bit[0] = ((randnum[0] & 0xF0) >> 4 );
-	randnum_4bit[1] = ((randnum[0] & 0x0F) >> 0 );
-	randnum_4bit[2] = ((randnum[1] & 0xF0) >> 4 );
-	randnum_4bit[3] = ((randnum[1] & 0x0F) >> 0 );
-	randnum_4bit[4] = ((randnum[2] & 0xF0) >> 4 );
-	randnum_4bit[5] = ((randnum[2] & 0x0F) >> 0 );
+	uint8_t oneTimePass_4bit[6] = {0}; // Random number 4 bits  
+	oneTimePass_4bit[0] = ((oneTimePass[0] & 0xF0) >> 4 );
+	oneTimePass_4bit[1] = ((oneTimePass[0] & 0x0F) >> 0 );
+	oneTimePass_4bit[2] = ((oneTimePass[1] & 0xF0) >> 4 );
+	oneTimePass_4bit[3] = ((oneTimePass[1] & 0x0F) >> 0 );
+	oneTimePass_4bit[4] = ((oneTimePass[2] & 0xF0) >> 4 );
+	oneTimePass_4bit[5] = ((oneTimePass[2] & 0x0F) >> 0 );
 
 	//1 byte encryption test
 //	uint8_t byte_1 = encrypted_address_byte(ble_address.addr[3],randnum_4bit[0]);
@@ -723,16 +747,24 @@ uint32_t keyring_advdata_encode(ble_advdata_t const * const p_advdata,
 //	{
 //		org_data_bits.u8_bytes[i] = encrypted_address_byte(ble_address.addr[5-i],randnum_4bit[i]);		
 //	}
+	// Rearrange the BD encrypted data for uint16_t 
+	org_data_bits.u8_bytes[1] = encrypted_address_byte(ble_address.addr[5],oneTimePass_4bit[0]);
+	org_data_bits.u8_bytes[0] = encrypted_address_byte(ble_address.addr[4],oneTimePass_4bit[1]);
+	org_data_bits.u8_bytes[3] = encrypted_address_byte(ble_address.addr[3],oneTimePass_4bit[2]);
+	org_data_bits.u8_bytes[2] = encrypted_address_byte(ble_address.addr[2],oneTimePass_4bit[3]);
+	org_data_bits.u8_bytes[5] = encrypted_address_byte(ble_address.addr[1],oneTimePass_4bit[4]);
+	org_data_bits.u8_bytes[4] = encrypted_address_byte(ble_address.addr[0],oneTimePass_4bit[5]);
 	
-	org_data_bits.u8_bytes[1] = encrypted_address_byte(ble_address.addr[5],randnum_4bit[0]);
-	org_data_bits.u8_bytes[0] = encrypted_address_byte(ble_address.addr[4],randnum_4bit[1]);
-	org_data_bits.u8_bytes[3] = encrypted_address_byte(ble_address.addr[3],randnum_4bit[2]);
-	org_data_bits.u8_bytes[2] = encrypted_address_byte(ble_address.addr[2],randnum_4bit[3]);
-	org_data_bits.u8_bytes[5] = encrypted_address_byte(ble_address.addr[1],randnum_4bit[4]);
-	org_data_bits.u8_bytes[4] = encrypted_address_byte(ble_address.addr[0],randnum_4bit[5]);
-	
+	uint16_t encry_size_u16_1 = (uint16_t) encry_size_1;
+	uint16_t encry_size_u16_2 = (uint16_t) encry_size_2;
+	encry_size_u16_1 = (encry_size_u16_1 << 8) |  encry_size_u16_1 ;
+	encry_size_u16_2 = (encry_size_u16_2 << 8) |  encry_size_u16_2 ;
+	uint16_t Keyring_randnum_1 = Keyring_gen_randnum_1 & encry_size_u16_1;
+	uint16_t Keyring_randnum_2 = Keyring_gen_randnum_2 & encry_size_u16_2;
 	
 	// Start Encryption uint16_t : 1
+	// org_data_bits.u16_bytes shift left and right number X will clear X digit in left 
+	// If use shift left and right in the same line, param will have wrong value, so use temp_16 for buffer 
 	uint16_t temp_16 = org_data_bits.u16_bytes[0] >>(16-encry_size_1);
 	en_data_bits.u16_bytes[0] = (temp_16 << (16-encry_size_1)) | (Keyring_randnum_1 >> encry_size_1);
 	// uint16_t:2
@@ -752,9 +784,7 @@ uint32_t keyring_advdata_encode(ble_advdata_t const * const p_advdata,
 	*p_len += uint16_inverse_encode(en_data_bits.u16_bytes[2], &p_encoded_data[*p_len]);
 	*p_len += uint16_inverse_encode(en_data_bits.u16_bytes[3], &p_encoded_data[*p_len]);
 	*p_len += uint16_inverse_encode(en_data_bits.u16_bytes[4], &p_encoded_data[*p_len]);
-
-//*p_len += uint8_encode(0x01, &p_encoded_data[*p_len]); 
-//*p_len += uint8_encode(0xFF, &p_encoded_data[*p_len]); 
+ 
 	return NRF_SUCCESS;
 }
 
@@ -889,7 +919,6 @@ static void ias_client_init(void)
 }
 
 // gill 20160701
-// gill 20160701
 /**@brief Function for handling Immediate Alert events.
  *
  * @details This function will be called for all Immediate Alert events which are passed to the
@@ -903,8 +932,8 @@ static void on_ecys_evt(ble_ecys_t * p_ecys, ble_ecys_evt_t * p_evt)
     switch (p_evt->evt_type)
     {
         case BLE_ECYS_EVT_RANDOM_NUMBER_UPDATED:
-            //alert_signal(p_evt->params.random_number);
-            break;//BLE_IAS_EVT_ALERT_LEVEL_UPDATED
+            // Do nothing, reserved
+            break;
 
         default:
             // No implementation needed.
@@ -1463,10 +1492,6 @@ void measure_VDD_start(void)
 {
 		adc_configure();//Tsungta
     app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
-	// gill test
-//	uint8_t randnum[4]; 
-//	main_debug = ble_ecys_random_number_get(&m_ecys,randnum);
-//	main_debug += 0;
 }	
 
 void measure_VDD_stop(void)

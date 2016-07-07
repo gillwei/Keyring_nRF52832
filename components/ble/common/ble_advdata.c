@@ -781,9 +781,12 @@ uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * 
         //err_code = srdata_check(p_srdata);
         //VERIFY_SUCCESS(err_code);
 
-				//err_code = keyring_advdata_encode(p_srdata, encoded_srdata, &len_srdata);
-//        err_code = adv_data_encode(p_srdata, encoded_srdata, &len_srdata);
+//        err_code = keyring_scrdata_encode(p_srdata, encoded_srdata, &len_srdata);
 //        VERIFY_SUCCESS(err_code);
+//				if(encoded_srdata == NULL)
+//				{
+//								len_srdata = 0;
+//				}
 //        p_encoded_srdata = encoded_srdata;
 //    }
 //    else
@@ -794,7 +797,7 @@ uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * 
 
 		//len_advdata = 12;
     // Pass encoded advertising data and/or scan response data to the stack.
-    *pa32_watch  = sd_ble_gap_adv_data_set(encoded_advdata, len_advdata, p_encoded_srdata, len_srdata);
+    *pa32_watch  = sd_ble_gap_adv_data_set(encoded_advdata, len_advdata, encoded_srdata, len_srdata);
 		return NRF_SUCCESS;
 		//return sd_ble_gap_adv_data_set(p_encoded_advdata, len_advdata, p_encoded_srdata, len_srdata);
 }
