@@ -121,8 +121,8 @@ static uint32_t alert_level_char_add(ble_ecys_t * p_ecys,ble_uuid_t input_char_u
     // read_perm just for test
 		BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&attr_md.read_perm);
 		//BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_ENC_NO_MITM(&attr_md.write_perm);
-
+    //BLE_GAP_CONN_SEC_MODE_SET_ENC_NO_MITM(&attr_md.write_perm);
+		BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
 
     attr_md.vloc    = BLE_GATTS_VLOC_STACK;
     attr_md.rd_auth = 0;

@@ -79,7 +79,7 @@ uint16_t key0_cnt_trigger = 3;
 #define SIGNAL_ALERT_BUTTON_ID              0                                            /**< Button used for send or cancel High Alert to the peer. */
 #define STOP_ALERTING_BUTTON_ID             1                                            /**< Button used for clearing the Alert LED that may be blinking or turned ON because of alerts from the central. */
 
-#define DEVICE_NAME                         "Keyring_v01"                                /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                         "Keyring_v02"                                /**< Name of device. Will be included in the advertising data. */
 
 //Atlas
 //#define APP_ADV_INTERVAL_FAST               0x0028                                       /**< Fast advertising interval (in units of 0.625 ms. This value corresponds to 25 ms.). */
@@ -688,15 +688,19 @@ uint32_t keyring_scrdata_encode(ble_advdata_t const * const p_advdata,
   uint16_t max_size = *p_len;
   *p_len = 0;
   uint16_t length = 0;
+	//uint16_t tx_power_level = TX_POWER_LEVEL;
+	int8_t tx_power_level = TX_POWER_LEVEL;
+	main_debug_16 = tx_power_level;
 	// CD-SK1
 	//0x43 0x44 0x2d 0x53 0x4b 0x31
-	*p_len += uint16_inverse_encode(0x4344, &p_encoded_data[*p_len]);     
-	*p_len += uint16_inverse_encode(0x2D53, &p_encoded_data[*p_len]);
+	*p_len += uint16_inverse_encode(0x08FF, &p_encoded_data[*p_len]);  // Length(including AD Type) + AD type(manufacturer)
+	*p_len += uint8_encode(tx_power_level, &p_encoded_data[*p_len]); 
+	*p_len += uint16_inverse_encode(0x4344, &p_encoded_data[*p_len]); 
+	*p_len += uint16_inverse_encode(0x2D53, &p_encoded_data[*p_len]);  
 	*p_len += uint16_inverse_encode(0x4B31, &p_encoded_data[*p_len]);  	
 	// tx power
-	uint8_t tx_power_level = TX_POWER_LEVEL;
-	*p_len += uint8_encode(tx_power_level, &p_encoded_data[*p_len]);  
-	
+	 
+	return NRF_SUCCESS;
 }
 
 // Called from ble_advdata_set() in ble_advdata.c, replace adv_data_encode()
@@ -725,7 +729,7 @@ uint32_t keyring_advdata_encode(ble_advdata_t const * const p_advdata,
 	
 	// Start encode advertising packet
 	*p_len += uint16_inverse_encode(0x12FF, &p_encoded_data[*p_len]);     // Packet Length & AD type
-	*p_len += uint16_inverse_encode(0x0150, &p_encoded_data[*p_len]);    // Company Identify Name
+	*p_len += uint16_inverse_encode(0x5001, &p_encoded_data[*p_len]);    // Company Identify Name
 	*p_len += uint8_encode(0x00, &p_encoded_data[*p_len]);  // FSENS Trigger, not used
 	*p_len += uint16_inverse_encode(oneTimePass_u16_1, &p_encoded_data[*p_len]); // One Time Password 1
 	*p_len += uint16_inverse_encode(oneTimePass_u16_2, &p_encoded_data[*p_len]);
@@ -1528,6 +1532,12 @@ int main(void)
     db_discovery_init();
     services_init();
     conn_params_init();
+		
+		ble_gap_addr_t ble_buf_address;
+		err_code = sd_ble_gap_address_get(&ble_buf_address);
+		ble_buf_address.addr_type = BLE_GAP_ADDR_TYPE_PUBLIC;
+		err_code = sd_ble_gap_address_set(BLE_GAP_ADDR_CYCLE_MODE_NONE,&ble_buf_address);
+		
 		advertising_init(); // change after services_init for random number get
     advertising_start();
 

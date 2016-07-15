@@ -759,21 +759,21 @@ uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * 
     uint8_t * p_encoded_srdata;
 
     // Encode advertising data (if supplied).
-    if (p_advdata != NULL)
-    {
+//    if (p_advdata != NULL)
+//    {
         //err_code = advdata_check(p_advdata);
         //VERIFY_SUCCESS(err_code);
 				err_code = keyring_advdata_encode(p_advdata, encoded_advdata, &len_advdata);
         //err_code = adv_data_encode(p_advdata, encoded_advdata, &len_advdata);
-        VERIFY_SUCCESS(err_code);	
-			
-        p_encoded_advdata = encoded_advdata;
-    }
-    else
-    {
-        p_encoded_advdata = NULL;
-        len_advdata = 0;
-    }
+//        VERIFY_SUCCESS(err_code);	
+//			
+//        p_encoded_advdata = encoded_advdata;
+//    }
+//    else
+//    {
+//        p_encoded_advdata = NULL;
+//        len_advdata = 0;
+//    }
 
     // Encode scan response data (if supplied).
 //    if (p_srdata != NULL)
@@ -781,7 +781,7 @@ uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * 
         //err_code = srdata_check(p_srdata);
         //VERIFY_SUCCESS(err_code);
 
-//        err_code = keyring_scrdata_encode(p_srdata, encoded_srdata, &len_srdata);
+        err_code = keyring_scrdata_encode(p_srdata, encoded_srdata, &len_srdata);
 //        VERIFY_SUCCESS(err_code);
 //				if(encoded_srdata == NULL)
 //				{
@@ -791,8 +791,8 @@ uint32_t ble_advdata_set(const ble_advdata_t * p_advdata, const ble_advdata_t * 
 //    }
 //    else
 //    {
-        p_encoded_srdata = NULL;
-        len_srdata = 0;
+//        p_encoded_srdata = NULL;
+//        len_srdata = 0;
 //    }
 
 		//len_advdata = 12;

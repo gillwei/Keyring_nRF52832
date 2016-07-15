@@ -215,7 +215,8 @@ uint32_t ble_advertising_start(ble_adv_mode_t advertising_mode)
     ble_gap_adv_params_t adv_params;
 
     m_adv_mode_current = advertising_mode;
-
+		// gill for encryption		
+		err_code               = ble_advdata_set(&m_advdata, NULL);
     // Verify if there are any pending flash operations. If so, delay starting advertising until
     // the flash operations are complete.
     if(flash_access_in_progress())
@@ -317,7 +318,7 @@ uint32_t ble_advertising_start(ble_adv_mode_t advertising_mode)
             adv_params.timeout  = m_adv_modes_config.ble_adv_fast_timeout;
             adv_params.interval = m_adv_modes_config.ble_adv_fast_interval;
 				// gill for encryption		
-				err_code               = ble_advdata_set(&m_advdata, NULL);
+				//err_code               = ble_advdata_set(&m_advdata, NULL);
 
             if (   whitelist_has_entries(&m_whitelist)
                 && m_adv_modes_config.ble_adv_whitelist_enabled
