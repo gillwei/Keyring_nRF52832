@@ -324,7 +324,7 @@ bool gscm_service_changed_ind_needed(uint16_t conn_handle)
         return false;
     }
 
-    return &peer_data.p_service_changed_pending;
+    return *peer_data.p_service_changed_pending;
 }
 
 
@@ -364,6 +364,6 @@ void gscm_db_change_notification_done(pm_peer_id_t peer_id)
 
     // Don't need to check return code, because all error conditions can be ignored.
     //lint -save -e550
-    (void) pdb_raw_store(peer_id, &peer_data, NULL);
+    (void)pdb_raw_store(peer_id, &peer_data, NULL);
     //lint -restore
 }

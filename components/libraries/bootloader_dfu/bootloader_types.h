@@ -26,6 +26,7 @@
 #include <stdint.h>
 
 #define BOOTLOADER_DFU_START 0xB1
+#define BOOTLOADER_DFU_END   0xB2
 
 #define BOOTLOADER_SVC_APP_DATA_PTR_GET 0x02
 

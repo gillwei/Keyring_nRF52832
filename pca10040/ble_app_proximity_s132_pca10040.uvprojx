@@ -371,9 +371,9 @@
             <vShortWch>0</vShortWch>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>BLE_STACK_SUPPORT_REQD BOARD_CUSTOM NRF52_PAN_12 NRF52_PAN_15 NRF52_PAN_20 NRF52_PAN_30 NRF52_PAN_31 NRF52_PAN_36 NRF52_PAN_51 NRF52_PAN_53 NRF52_PAN_54 NRF52_PAN_55 NRF52_PAN_58 NRF52_PAN_62 NRF52_PAN_63 NRF52_PAN_64 CONFIG_GPIO_AS_PINRESET S132  NRF52 SOFTDEVICE_PRESENT SWI_DISABLE0</Define>
+              <Define>BLE_STACK_SUPPORT_REQD BOARD_CUSTOM NRF52_PAN_12 NRF52_PAN_15 NRF52_PAN_20 NRF52_PAN_30 NRF52_PAN_31 NRF52_PAN_36 NRF52_PAN_51 NRF52_PAN_53 NRF52_PAN_54 NRF52_PAN_55 NRF52_PAN_58 NRF52_PAN_62 NRF52_PAN_63 NRF52_PAN_64 CONFIG_GPIO_AS_PINRESET S132  NRF52 SOFTDEVICE_PRESENT SWI_DISABLE0 BLE_DFU_APP_SUPPORT</Define>
               <Undefine></Undefine>
-              <IncludePath>..\config\ble_app_proximity_s132_pca10040;..\config;..\components\ble\ble_db_discovery;..\components\ble\ble_services\ble_bas;..\components\ble\ble_services\ble_ias;..\components\ble\ble_services\ble_ias_c;..\components\ble\ble_services\ble_lls;..\components\ble\ble_services\ble_tps;..\components\ble\common;..\components\ble\peer_manager;..\components\drivers_nrf\common;..\components\drivers_nrf\config;..\components\drivers_nrf\delay;..\components\drivers_nrf\gpiote;..\components\drivers_nrf\hal;..\components\drivers_nrf\pstorage;..\components\drivers_nrf\saadc;..\components\drivers_nrf\uart;..\components\libraries\button;..\components\libraries\crc16;..\components\libraries\experimental_section_vars;..\components\libraries\fds;..\components\libraries\fds\config;..\components\libraries\fifo;..\components\libraries\fstorage;..\components\libraries\fstorage\config;..\components\libraries\sensorsim;..\components\libraries\timer;..\components\libraries\uart;..\components\libraries\util;..\components\softdevice\common\softdevice_handler;..\components\softdevice\s132\headers;..\components\softdevice\s132\headers\nrf52;..\components\toolchain;..\external\segger_rtt;..\bsp;..\..\keyring_git;..\components\drivers_nrf\timer;..\components\libraries\pwm;..\components\drivers_nrf\ppi;..\components\ble\ble_advertising;..\components\drivers_nrf\saadc;..\ble_ecys</IncludePath>
+              <IncludePath>..\config\ble_app_proximity_s132_pca10040;..\config;..\components\ble\ble_db_discovery;..\components\ble\ble_services\ble_bas;..\components\ble\ble_services\ble_ias;..\components\ble\ble_services\ble_ias_c;..\components\ble\ble_services\ble_lls;..\components\ble\ble_services\ble_tps;..\components\ble\common;..\components\ble\peer_manager;..\components\drivers_nrf\common;..\components\drivers_nrf\config;..\components\drivers_nrf\delay;..\components\drivers_nrf\gpiote;..\components\drivers_nrf\hal;..\components\drivers_nrf\pstorage;..\components\drivers_nrf\saadc;..\components\drivers_nrf\uart;..\components\libraries\button;..\components\libraries\crc16;..\components\libraries\experimental_section_vars;..\components\libraries\fds;..\components\libraries\fds\config;..\components\libraries\fifo;..\components\libraries\fstorage;..\components\libraries\fstorage\config;..\components\libraries\sensorsim;..\components\libraries\timer;..\components\libraries\uart;..\components\libraries\util;..\components\softdevice\common\softdevice_handler;..\components\softdevice\s132\headers;..\components\softdevice\s132\headers\nrf52;..\components\toolchain;..\external\segger_rtt;..\bsp;..\..\keyring_git;..\components\drivers_nrf\timer;..\components\libraries\pwm;..\components\drivers_nrf\ppi;..\components\ble\ble_advertising;..\components\drivers_nrf\saadc;..\ble_ecys;..\components\libraries\bootloader_dfu;..\components\ble\ble_services\ble_dfu</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -388,7 +388,7 @@
             <useXO>0</useXO>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define> BLE_STACK_SUPPORT_REQD BOARD_PCA10040 NRF52_PAN_12 NRF52_PAN_15 NRF52_PAN_20 NRF52_PAN_30 NRF52_PAN_31 NRF52_PAN_36 NRF52_PAN_51 NRF52_PAN_53 NRF52_PAN_54 NRF52_PAN_55 NRF52_PAN_58 NRF52_PAN_62 NRF52_PAN_63 NRF52_PAN_64 CONFIG_GPIO_AS_PINRESET S132 NRF_LOG_USES_UART=1 NRF52 SOFTDEVICE_PRESENT SWI_DISABLE0</Define>
+              <Define>BLE_STACK_SUPPORT_REQD BOARD_PCA10040 NRF52_PAN_12 NRF52_PAN_15 NRF52_PAN_20 NRF52_PAN_30 NRF52_PAN_31 NRF52_PAN_36 NRF52_PAN_51 NRF52_PAN_53 NRF52_PAN_54 NRF52_PAN_55 NRF52_PAN_58 NRF52_PAN_62 NRF52_PAN_63 NRF52_PAN_64 CONFIG_GPIO_AS_PINRESET S132 NRF_LOG_USES_UART=1 NRF52 SOFTDEVICE_PRESENT SWI_DISABLE0</Define>
               <Undefine></Undefine>
               <IncludePath></IncludePath>
             </VariousControls>
@@ -581,6 +581,11 @@
               <FileType>1</FileType>
               <FilePath>..\components\ble\peer_manager\security_manager.c</FilePath>
             </File>
+            <File>
+              <FileName>ble_dfu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\components\ble\ble_services\ble_dfu\ble_dfu.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -730,6 +735,16 @@
               <FileName>app_pwm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\components\libraries\pwm\app_pwm.c</FilePath>
+            </File>
+            <File>
+              <FileName>dfu_app_handler_pm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\components\libraries\bootloader_dfu\dfu_app_handler_pm.c</FilePath>
+            </File>
+            <File>
+              <FileName>bootloader_util.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\components\libraries\bootloader_dfu\bootloader_util.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1315,6 +1330,11 @@
               <FileType>1</FileType>
               <FilePath>..\components\ble\peer_manager\security_manager.c</FilePath>
             </File>
+            <File>
+              <FileName>ble_dfu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\components\ble\ble_services\ble_dfu\ble_dfu.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1464,6 +1484,16 @@
               <FileName>app_pwm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\components\libraries\pwm\app_pwm.c</FilePath>
+            </File>
+            <File>
+              <FileName>dfu_app_handler_pm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\components\libraries\bootloader_dfu\dfu_app_handler_pm.c</FilePath>
+            </File>
+            <File>
+              <FileName>bootloader_util.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\components\libraries\bootloader_dfu\bootloader_util.c</FilePath>
             </File>
           </Files>
         </Group>

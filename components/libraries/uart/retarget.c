@@ -45,8 +45,13 @@ int fgetc(FILE * p_file)
 int fputc(int ch, FILE * p_file)
 {
     UNUSED_PARAMETER(p_file);
+    uint32_t err_code;
+    do
+    {
+         err_code = app_uart_put((uint8_t)ch);
+    }
+    while(err_code);
 
-    UNUSED_VARIABLE(app_uart_put((uint8_t)ch));
     return ch;
 }
 

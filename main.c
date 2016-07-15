@@ -58,6 +58,13 @@
 #include "fstorage.h"
 #include "ble_conn_state.h"
 
+#ifdef BLE_DFU_APP_SUPPORT
+#include "ble_dfu.h"
+#include "dfu_app_handler_pm.h"
+#include "nrf_delay.h"
+#include "gatts_cache_manager.h"
+#endif // BLE_DFU_APP_SUPPORT
+
 #include "main.h"//Tsungta
 extern uint16_t batt_mV;
 uint16_t key0_cnt = 0;
@@ -71,7 +78,7 @@ uint16_t key0_cnt_trigger = 3;
 
 #define APP_FEATURE_NOT_SUPPORTED           BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2        /**< Reply when unsupported features are requested. */
 
-#define IS_SRVC_CHANGED_CHARACT_PRESENT     0                                            /**< Include or not the service_changed characteristic. if not enabled, the server's database cannot be changed for the lifetime of the device*/
+#define IS_SRVC_CHANGED_CHARACT_PRESENT     1 //0   //gill for dfu                       /**< Include or not the service_changed characteristic. if not enabled, the server's database cannot be changed for the lifetime of the device*/
 
 #define CENTRAL_LINK_COUNT                  0                                            /**<number of central links used by the application. When changing this number remember to adjust the RAM settings*/
 #define PERIPHERAL_LINK_COUNT               1                                            /**<number of peripheral links used by the application. When changing this number remember to adjust the RAM settings*/
@@ -134,6 +141,17 @@ uint16_t key0_cnt_trigger = 3;
 #define ADC_INPUT_PRESCALER                 3                                            /**< Input prescaler for ADC convestion on NRF51. */
 #define ADC_RES_10BIT                       1024                                         /**< Maximum digital value for 10-bit ADC conversion. */
 
+#ifdef BLE_DFU_APP_SUPPORT
+#define DFU_REV_MAJOR                    0x00                                       /** DFU Major revision number to be exposed. */
+#define DFU_REV_MINOR                    0x01                                       /** DFU Minor revision number to be exposed. */
+#define DFU_REVISION                     ((DFU_REV_MAJOR << 8) | DFU_REV_MINOR)     /** DFU Revision number to be exposed. Combined of major and minor versions. */
+#define APP_SERVICE_HANDLE_START         0x000C                                     /**< Handle of first application specific service when when service changed characteristic is present. */
+#define BLE_HANDLE_MAX                   0xFFFF                                     /**< Max handle value in BLE. */
+
+//STATIC_ASSERT(IS_SRVC_CHANGED_CHARACT_PRESENT);                                     /** When having DFU Service support in application the Service Changed Characteristic should always be present. */
+#endif // BLE_DFU_APP_SUPPORT
+
+
 /**@brief Macro to convert the result of ADC conversion in millivolts.
  *
  * @param[in]  ADC_VALUE   ADC result.
@@ -178,6 +196,10 @@ static void on_bas_evt(ble_bas_t * p_bas, ble_bas_evt_t * p_evt);
 static void advertising_init(void);
 static void advertising_start(void);
 
+#ifdef BLE_DFU_APP_SUPPORT
+static ble_dfu_t                         m_dfus;                                    /**< Structure used to identify the DFU service. */
+#endif // BLE_DFU_APP_SUPPORT																	 
+																	 
 // gill 																	 
 static uint32_t main_debug;
 static uint16_t main_debug_16; 
@@ -959,6 +981,67 @@ static void ecys_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+#ifdef BLE_DFU_APP_SUPPORT
+/**@brief Function for stopping advertising.
+ */
+static void advertising_stop(void)
+{
+    uint32_t err_code;
+
+    err_code = sd_ble_gap_adv_stop();
+    APP_ERROR_CHECK(err_code);
+
+    err_code = bsp_indication_set(BSP_INDICATE_IDLE);
+    APP_ERROR_CHECK(err_code);
+}
+
+/** @snippet [DFU BLE Reset prepare] */
+/**@brief Function for preparing for system reset.
+ *
+ * @details This function implements @ref dfu_app_reset_prepare_t. It will be called by
+ *          @ref dfu_app_handler.c before entering the bootloader/DFU.
+ *          This allows the current running application to shut down gracefully.
+ */
+static void reset_prepare(uint16_t m_conn_handle)
+{
+    uint32_t err_code;
+     
+    if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+    {
+        // Disconnect from peer.
+        err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+        APP_ERROR_CHECK(err_code);
+        err_code = bsp_indication_set(BSP_INDICATE_IDLE);
+        APP_ERROR_CHECK(err_code);
+    }
+    else
+    {
+        // If not connected, the device will be advertising. Hence stop the advertising.
+        advertising_stop();
+    }
+    
+    // Disconnet from peer
+//    if(m_conn_handle_hrs_c != BLE_CONN_HANDLE_INVALID)
+//    {
+//        err_code = sd_ble_gap_disconnect(m_conn_handle_hrs_c, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+//        APP_ERROR_CHECK(err_code);
+//    }
+//    
+//    if(m_conn_handle_rscs_c != BLE_CONN_HANDLE_INVALID)
+//    {
+//        err_code = sd_ble_gap_disconnect(m_conn_handle_rscs_c, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+//        APP_ERROR_CHECK(err_code);
+//    }
+//    
+   // (void) sd_ble_gap_scan_stop();  
+    err_code = ble_conn_params_stop();
+    APP_ERROR_CHECK(err_code);
+    nrf_delay_ms(500);
+    
+}
+/** @snippet [DFU BLE Reset prepare] */
+#endif // BLE_DFU_APP_SUPPORT
+
 /**@brief Function for initializing the services that will be used by the application.
  */
 static void services_init(void)
@@ -969,6 +1052,26 @@ static void services_init(void)
     bas_init();
 		ecys_init();
     ias_client_init();
+	#ifdef BLE_DFU_APP_SUPPORT
+		uint32_t err_code;
+    /** @snippet [DFU BLE Service initialization] */
+    ble_dfu_init_t   dfus_init;
+
+    // Initialize the Device Firmware Update Service.
+    memset(&dfus_init, 0, sizeof(dfus_init));
+
+    dfus_init.evt_handler   = dfu_app_on_dfu_evt;
+    dfus_init.error_handler = NULL;
+    dfus_init.evt_handler   = dfu_app_on_dfu_evt;
+    dfus_init.revision      = DFU_REVISION;
+
+    err_code = ble_dfu_init(&m_dfus, &dfus_init);
+    APP_ERROR_CHECK(err_code);
+
+    dfu_app_reset_prepare_set(reset_prepare);
+//    dfu_app_dm_appl_instance_set(m_app_handle);
+    /** @snippet [DFU BLE Service initialization] */
+#endif // BLE_DFU_APP_SUPPORT
 }
 
 
@@ -1268,6 +1371,11 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
 		ble_ecys_on_ble_evt(&m_ecys, p_ble_evt);
     on_ble_evt(p_ble_evt);
     ble_advertising_on_ble_evt(p_ble_evt);
+	#ifdef BLE_DFU_APP_SUPPORT
+        /** @snippet [Propagating BLE Stack events to DFU Service] */
+        ble_dfu_on_ble_evt(&m_dfus, p_ble_evt);
+        /** @snippet [Propagating BLE Stack events to DFU Service] */
+#endif // BLE_DFU_APP_SUPPORT
 }
 
 
@@ -1306,6 +1414,8 @@ static void ble_stack_init(void)
 
     // Check the ram settings against the used number of links
     CHECK_RAM_START_ADDR(CENTRAL_LINK_COUNT, PERIPHERAL_LINK_COUNT);
+	
+		ble_enable_params.gatts_enable_params.service_changed = 1; // gill for dfu
 
     // Enable BLE stack.
     err_code = softdevice_enable(&ble_enable_params);
@@ -1334,7 +1444,7 @@ static void ble_stack_init(void)
  * @param[in] erase_bonds  Indicates whether bonding information should be cleared from
  *                         persistent storage during initialization of the Peer Manager.
  */
-static void peer_manager_init(bool erase_bonds)
+static void peer_manager_init(bool erase_bonds, bool app_dfu)
 {
     ble_gap_sec_params_t sec_param;
     ret_code_t err_code;
@@ -1369,6 +1479,10 @@ static void peer_manager_init(bool erase_bonds)
 
     err_code = pm_register(pm_evt_handler);
     APP_ERROR_CHECK(err_code);
+		
+		// gill for dfu
+		// Send SC indication if new application was loaded by bootloader. 
+    if(app_dfu)pm_local_database_has_changed();
 }
 
 
@@ -1503,7 +1617,10 @@ void measure_VDD_stop(void)
     //app_timer_stop(m_battery_timer_id);
 		nrf_drv_saadc_uninit();//Tsungta
 		NVIC_ClearPendingIRQ(SAADC_IRQn);//Tsungta		
-}	
+}
+
+
+
 
 /**@brief Function for application main entry.
  */
@@ -1511,7 +1628,13 @@ int main(void)
 {
     uint32_t err_code;
     bool erase_bonds;
-
+		bool       app_dfu = (NRF_POWER->GPREGRET == BOOTLOADER_DFU_END);
+    
+    if (app_dfu)
+    {
+        NRF_POWER->GPREGRET = 0;
+    }
+		
     // Initialize.
     err_code = NRF_LOG_INIT();
     APP_ERROR_CHECK(err_code);
@@ -1521,7 +1644,7 @@ int main(void)
     ble_stack_init();
 //    adc_configure();//Tsungta
 	
-    peer_manager_init(erase_bonds);
+    peer_manager_init(erase_bonds, app_dfu);
     if (erase_bonds == true)
     {
         NRF_LOG_DEBUG("Bonds erased!\r\n");
