@@ -284,11 +284,11 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
                            ble_conn_state_role(p_evt->conn_handle),
                            p_evt->conn_handle,
                            p_evt->params.conn_sec_succeeded.procedure);
-            err_code = pm_peer_rank_highest(p_evt->peer_id);
+           /* err_code = pm_peer_rank_highest(p_evt->peer_id);
             if (err_code != NRF_ERROR_BUSY)
             {
                     APP_ERROR_CHECK(err_code);
-            }
+            }*/  // gill for dfu
         }break;//PM_EVT_CONN_SEC_SUCCEEDED
 
         case PM_EVT_CONN_SEC_FAILED:
@@ -1033,7 +1033,8 @@ static void reset_prepare(uint16_t m_conn_handle)
 //        APP_ERROR_CHECK(err_code);
 //    }
 //    
-   // (void) sd_ble_gap_scan_stop();  
+   // (void) sd_ble_gap_scan_stop(); 
+// gill 		
     err_code = ble_conn_params_stop();
     APP_ERROR_CHECK(err_code);
     nrf_delay_ms(500);
@@ -1066,7 +1067,8 @@ static void services_init(void)
     dfus_init.revision      = DFU_REVISION;
 
     err_code = ble_dfu_init(&m_dfus, &dfus_init);
-    APP_ERROR_CHECK(err_code);
+    main_debug = err_code;
+		APP_ERROR_CHECK(err_code);
 
     dfu_app_reset_prepare_set(reset_prepare);
 //    dfu_app_dm_appl_instance_set(m_app_handle);
@@ -1637,7 +1639,7 @@ int main(void)
 		
     // Initialize.
     err_code = NRF_LOG_INIT();
-    APP_ERROR_CHECK(err_code);
+ //   APP_ERROR_CHECK(err_code);
 
     timers_init();
     buttons_leds_init(&erase_bonds);

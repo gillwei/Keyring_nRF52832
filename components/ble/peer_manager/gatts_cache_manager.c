@@ -325,6 +325,7 @@ bool gscm_service_changed_ind_needed(uint16_t conn_handle)
     }
 
     return *peer_data.p_service_changed_pending;
+		//return &peer_data.p_service_changed_pending;
 }
 
 
